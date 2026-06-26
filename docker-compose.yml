@@ -1,0 +1,18 @@
+services:
+  pearl-miner:
+    platform: linux/amd64
+    build:
+      context: .
+      args:
+        ALPHA_MINER_VERSION: "1.7.9"
+    image: pearl-miner:1.7.9
+    restart: unless-stopped
+    gpus: all
+    environment:
+      PEARL_ADDRESS: "${PEARL_ADDRESS:?Set PEARL_ADDRESS to your prl1p... wallet address}"
+      PEARL_WORKER: "${PEARL_WORKER:-local-rig}"
+      PEARL_POOL_HOST: "${PEARL_POOL_HOST:-us2.alphapool.tech}"
+      PEARL_POOL_PORT: "${PEARL_POOL_PORT:-5566}"
+      PEARL_DIFFICULTY: "${PEARL_DIFFICULTY:-}"
+      PEARL_DEVICES: "${PEARL_DEVICES:-}"
+      PEARL_STATUS_INTERVAL: "${PEARL_STATUS_INTERVAL:-60}"
