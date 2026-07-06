@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 log() {
-  printf '[pearl-entrypoint] %s\n' "$*" >&2
+  printf '[native-alpha-miner] %s\n' "$*" >&2
 }
 
 die() {
@@ -10,13 +10,9 @@ die() {
   exit 1
 }
 
-if [[ "${1:-}" == "bash" || "${1:-}" == "sh" || "${1:-}" == "alpha-miner" || "${1:-}" == /* ]]; then
-  exec "$@"
-fi
-
-if [[ "${PEARL_LIST_DEVICES:-}" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
-  exec alpha-miner --list-devices
-fi
+version="${ALPHA_MINER_VERSION:-1.8.6}"
+install_dir="${ALPHA_MINER_DIR:-$HOME/.local/bin}"
+miner_path="${install_dir}/alpha-miner"
 
 address="${PEARL_ADDRESS:-}"
 [[ -n "$address" ]] || die "PEARL_ADDRESS is required, for example prl1..."
@@ -28,11 +24,11 @@ if [[ -n "${PEARL_MDL_ADDRESS:-}" ]]; then
   address="${address}+${PEARL_MDL_ADDRESS}"
 fi
 
-worker="${PEARL_WORKER:-${VAST_CONTAINERLABEL:-${HOSTNAME:-vast-rig}}}"
+worker="${PEARL_WORKER:-$(hostname)-pearl}"
 worker="$(printf '%s' "$worker" | tr -cs 'A-Za-z0-9_.-' '-')"
 worker="${worker#.}"
 worker="${worker%-}"
-[[ -n "$worker" ]] || worker="vast-rig"
+[[ -n "$worker" ]] || worker="$(hostname)-pearl"
 
 pool="${PEARL_POOL:-${PEARL_POOL_URL:-}}"
 if [[ -z "$pool" ]]; then
@@ -49,30 +45,30 @@ fi
 status_interval="${PEARL_STATUS_INTERVAL:-60}"
 [[ "$status_interval" =~ ^[0-9]+$ ]] || die "PEARL_STATUS_INTERVAL must be an integer"
 
-if command -v apply-gpu-presets >/dev/null 2>&1; then
-  apply-gpu-presets || log "WARN: GPU preset preflight failed unexpectedly; continuing to miner"
-else
-  log "WARN: apply-gpu-presets helper is not installed; continuing to miner"
-fi
-
-gpu_preset_env_file="${PEARL_GPU_PRESETS_ENV_FILE:-/tmp/pearl-gpu-preset.env}"
-if [[ -z "${PEARL_DIFFICULTY:-}" && -f "$gpu_preset_env_file" ]]; then
-  # shellcheck disable=SC1090
-  source "$gpu_preset_env_file"
-  if [[ -n "${PEARL_PRESET_DIFFICULTY:-}" ]]; then
-    if [[ "$PEARL_PRESET_DIFFICULTY" =~ ^[0-9]+$ ]]; then
-      PEARL_DIFFICULTY="$PEARL_PRESET_DIFFICULTY"
-      log "Using Pearl difficulty from GPU preset: ${PEARL_DIFFICULTY}"
-    else
-      log "WARN: ignoring invalid PEARL_PRESET_DIFFICULTY=${PEARL_PRESET_DIFFICULTY}"
-    fi
-  fi
-fi
-
 password="${PEARL_PASSWORD:-x}"
 if [[ -n "${PEARL_DIFFICULTY:-}" ]]; then
   [[ "${PEARL_DIFFICULTY}" =~ ^[0-9]+$ ]] || die "PEARL_DIFFICULTY must be an integer"
   password="x;d=${PEARL_DIFFICULTY}"
+fi
+
+if [[ ! -x "$miner_path" || "${ALPHA_MINER_FORCE_DOWNLOAD:-}" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
+  command -v curl >/dev/null 2>&1 || die "curl is required"
+  command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required"
+  mkdir -p "$install_dir"
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' EXIT
+
+  if [[ "$version" == "latest" ]]; then
+    release_url="https://github.com/AlphaMine-Tech/alpha-miner/releases/latest/download"
+  else
+    release_url="https://github.com/AlphaMine-Tech/alpha-miner/releases/download/v${version}"
+  fi
+
+  log "Downloading alpha-miner ${version} from ${release_url}"
+  curl -fsSL "${release_url}/alpha-miner" -o "${tmp_dir}/alpha-miner"
+  curl -fsSL "${release_url}/SHA256SUMS" -o "${tmp_dir}/SHA256SUMS"
+  (cd "$tmp_dir" && grep -E '[[:space:]]+alpha-miner$' SHA256SUMS | sha256sum -c -)
+  install -m 0755 "${tmp_dir}/alpha-miner" "$miner_path"
 fi
 
 args=(
@@ -101,4 +97,4 @@ if [[ "$address" == *+mdl1* ]]; then
 fi
 
 log "Starting alpha-miner worker=${worker} pool=${pool} devices=${PEARL_DEVICES:-all} difficulty=${PEARL_DIFFICULTY:-vardiff}"
-exec alpha-miner "${args[@]}" "$@"
+exec "$miner_path" "${args[@]}" "$@"

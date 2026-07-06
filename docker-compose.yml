@@ -4,15 +4,23 @@ services:
     build:
       context: .
       args:
-        ALPHA_MINER_VERSION: "1.7.9"
-    image: pearl-miner:1.7.9
+        ALPHA_MINER_VERSION: "1.8.6"
+    image: pearl-miner:1.8.6
     restart: unless-stopped
     gpus: all
     environment:
-      PEARL_ADDRESS: "${PEARL_ADDRESS:?Set PEARL_ADDRESS to your prl1p... wallet address}"
+      PEARL_ADDRESS: "${PEARL_ADDRESS:?Set PEARL_ADDRESS to your prl1... wallet address}"
+      PEARL_MDL_ADDRESS: "${PEARL_MDL_ADDRESS:-}"
       PEARL_WORKER: "${PEARL_WORKER:-local-rig}"
       PEARL_POOL_HOST: "${PEARL_POOL_HOST:-us2.alphapool.tech}"
       PEARL_POOL_PORT: "${PEARL_POOL_PORT:-5566}"
       PEARL_DIFFICULTY: "${PEARL_DIFFICULTY:-}"
       PEARL_DEVICES: "${PEARL_DEVICES:-}"
       PEARL_STATUS_INTERVAL: "${PEARL_STATUS_INTERVAL:-60}"
+      PEARL_GPU_PRESETS_ENABLE: "${PEARL_GPU_PRESETS_ENABLE:-false}"
+      PEARL_GPU_PRESETS_URL: "${PEARL_GPU_PRESETS_URL:-}"
+      PEARL_GPU_PRESETS_FILE: "${PEARL_GPU_PRESETS_FILE:-/etc/pearl/gpu-presets.csv}"
+      PEARL_GPU_PRESETS_ENV_FILE: "${PEARL_GPU_PRESETS_ENV_FILE:-/tmp/pearl-gpu-preset.env}"
+      PEARL_GPU_PRESETS_DRY_RUN: "${PEARL_GPU_PRESETS_DRY_RUN:-false}"
+      PEARL_GPU_PRESETS_TIMEOUT: "${PEARL_GPU_PRESETS_TIMEOUT:-10}"
+      PEARL_GPU_PRESETS_ALGORITHM: "${PEARL_GPU_PRESETS_ALGORITHM:-pearlhash}"

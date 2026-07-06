@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${PEARL_ADDRESS:?Set PEARL_ADDRESS to your prl1p... wallet address in the Vast template environment}"
+: "${PEARL_ADDRESS:?Set PEARL_ADDRESS to your prl1... wallet address in the Vast template environment}"
 
 log_file="${PEARL_LOG_FILE:-/var/log/pearl-miner.log}"
 

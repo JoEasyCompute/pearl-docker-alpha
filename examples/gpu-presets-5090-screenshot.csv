@@ -1,0 +1,2 @@
+enabled,algorithm,gpu_name_contains,pearl_difficulty,power_limit_w,lock_core_clock_mhz,core_clock_offset_mhz,lock_memory_clock_mhz,memory_clock_offset_mhz,fan_speed_pct,delay_before_apply_s
+true,pearlhash,RTX 5090,1048576,400,2490,200,7000,,,0
