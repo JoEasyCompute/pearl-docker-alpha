@@ -10,9 +10,33 @@ die() {
   exit 1
 }
 
+reject_hotfix_override_controls() {
+  [[ -z "${PEARL_XP+x}" ]] || die "PEARL_XP is rejected by Alpha Miner 1.9.1.02; remove rank/GEMM override environment variables"
+  [[ -z "${PEARL_FORCE_BACKEND:-}" ]] || die "PEARL_FORCE_BACKEND is rejected by Alpha Miner 1.9.1.02; remove backend overrides"
+
+  local env_name arg
+  while IFS='=' read -r env_name _; do
+    case "$env_name" in
+      PEARL_XP_*|PEARL_XK_*)
+        die "${env_name} is rejected by Alpha Miner 1.9.1.02; remove rank/GEMM override environment variables"
+        ;;
+    esac
+  done < <(env)
+
+  for arg in "$@"; do
+    case "$arg" in
+      --gemm|--gemm=*|--rank|--rank=*|--legacy-gemm|--legacy-gemm=*|--force-backend|--force-backend=*)
+        die "${arg} is rejected by Alpha Miner 1.9.1.02; remove manual rank/GEMM/backend arguments"
+        ;;
+    esac
+  done
+}
+
 if [[ "${1:-}" == "bash" || "${1:-}" == "sh" || "${1:-}" == "alpha-miner" || "${1:-}" == /* ]]; then
   exec "$@"
 fi
+
+reject_hotfix_override_controls "$@"
 
 if [[ "${PEARL_LIST_DEVICES:-}" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
   exec alpha-miner --list-devices
@@ -85,10 +109,6 @@ args=(
 
 if [[ -n "${PEARL_DEVICES:-}" ]]; then
   args+=(--devices "$PEARL_DEVICES")
-fi
-
-if [[ -n "${PEARL_FORCE_BACKEND:-}" ]]; then
-  args+=(--force-backend "$PEARL_FORCE_BACKEND")
 fi
 
 if command -v nvidia-smi >/dev/null 2>&1; then

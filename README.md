@@ -7,7 +7,7 @@ It is designed for two cases:
 - Creating a Vast.ai provider default job that mines while your own listed machine is idle.
 - Creating a normal Vast.ai template for testing or manual launches.
 
-The image downloads the official `alpha-miner` Linux binary from `AlphaMine-Tech/alpha-miner`, verifies the release `SHA256SUMS`, and starts one miner process across all visible CUDA GPUs. The default build currently targets `alpha-miner v1.8.6` for native MDL merge-mining support; upstream marks this as pre-release and requires NVIDIA driver 580+.
+The image downloads the official `alpha-miner` Linux package from `AlphaMine-Tech/alpha-miner`, verifies the release `SHA256SUMS`, and starts one miner process across all visible CUDA GPUs. The default build currently targets `alpha-miner v1.9.1.02`, the 2026-08-07 emergency rank-128 hotfix.
 
 ## Plain-English Overview
 
@@ -76,22 +76,22 @@ If that command fails on a Linux GPU server, install or fix NVIDIA Container Too
 Run this command from this repository directory:
 
 ```bash
-docker build --platform linux/amd64 -t pearl-miner:1.8.6 --build-arg ALPHA_MINER_VERSION=1.8.6 .
+docker build --platform linux/amd64 -t pearl-miner:1.9.1.02 --build-arg ALPHA_MINER_VERSION=1.9.1.02 .
 ```
 
 Why `linux/amd64` matters:
 
 - Vast GPU hosts are normally AMD64/x86_64 Linux machines.
-- The official Linux `alpha-miner` binary is published for AMD64.
+- The official Linux `alpha-miner` package is published for AMD64.
 - If you build on Apple Silicon, this flag prevents Docker from accidentally building an ARM64 image that cannot run the miner.
 
 The build should show this checksum line:
 
 ```text
-alpha-miner: OK
+alpha-miner-1.9.1b-ubuntu-amd64.tar.gz: OK
 ```
 
-That means the miner binary matched the official upstream checksum.
+That means the miner package matched the official upstream checksum.
 
 ## Step 4: Test the Image Locally
 
@@ -104,7 +104,7 @@ docker run --rm --gpus all \
   -e PEARL_POOL_HOST=us2.alphapool.tech \
   -e PEARL_POOL_PORT=5566 \
   -e PEARL_DIFFICULTY=1048576 \
-  pearl-miner:1.8.6
+  pearl-miner:1.9.1.02
 ```
 
 If your local machine does not have NVIDIA GPUs, you can still verify the image exists:
@@ -116,7 +116,7 @@ docker image ls pearl-miner
 You can also verify the startup script rejects missing configuration:
 
 ```bash
-docker run --rm pearl-miner:1.8.6
+docker run --rm pearl-miner:1.9.1.02
 ```
 
 Expected result:
@@ -145,19 +145,19 @@ docker login
 Tag the image. Replace `YOUR_DOCKERHUB_USERNAME` with your Docker Hub username:
 
 ```bash
-docker tag pearl-miner:1.8.6 YOUR_DOCKERHUB_USERNAME/pearl-miner:1.8.6
+docker tag pearl-miner:1.9.1.02 YOUR_DOCKERHUB_USERNAME/pearl-miner:1.9.1.02
 ```
 
 Push it:
 
 ```bash
-docker push YOUR_DOCKERHUB_USERNAME/pearl-miner:1.8.6
+docker push YOUR_DOCKERHUB_USERNAME/pearl-miner:1.9.1.02
 ```
 
 Your Vast image name will be:
 
 ```text
-YOUR_DOCKERHUB_USERNAME/pearl-miner:1.8.6
+YOUR_DOCKERHUB_USERNAME/pearl-miner:1.9.1.02
 ```
 
 ### Option B: GitHub Container Registry
@@ -171,19 +171,19 @@ docker login ghcr.io
 Tag the image. Replace `YOUR_GITHUB_USERNAME`:
 
 ```bash
-docker tag pearl-miner:1.8.6 ghcr.io/YOUR_GITHUB_USERNAME/pearl-miner:1.8.6
+docker tag pearl-miner:1.9.1.02 ghcr.io/YOUR_GITHUB_USERNAME/pearl-miner:1.9.1.02
 ```
 
 Push it:
 
 ```bash
-docker push ghcr.io/YOUR_GITHUB_USERNAME/pearl-miner:1.8.6
+docker push ghcr.io/YOUR_GITHUB_USERNAME/pearl-miner:1.9.1.02
 ```
 
 Your Vast image name will be:
 
 ```text
-ghcr.io/YOUR_GITHUB_USERNAME/pearl-miner:1.8.6
+ghcr.io/YOUR_GITHUB_USERNAME/pearl-miner:1.9.1.02
 ```
 
 ## Step 6: Create the Vast.ai Provider Default Job
@@ -206,7 +206,7 @@ Create or edit the provider default job for the host and use these values:
 
 | Field | Value |
 | --- | --- |
-| Docker image | `YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.6` |
+| Docker image | `YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.1.02` |
 | Launch mode | `Docker ENTRYPOINT` |
 | Disk | `8 GB` minimum |
 | On-start script | Leave empty |
@@ -299,7 +299,7 @@ nvidia-smi
 Pull your published image:
 
 ```bash
-docker pull YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.6
+docker pull YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.1.02
 ```
 
 Stop any existing Pearl miner container:
@@ -318,7 +318,7 @@ docker run -d --restart unless-stopped --gpus all \
   -e PEARL_POOL_HOST=us2.alphapool.tech \
   -e PEARL_POOL_PORT=5566 \
   -e PEARL_DIFFICULTY=1048576 \
-  YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.6
+  YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.1.02
 ```
 
 View logs:
@@ -397,22 +397,24 @@ AlphaPool publishes new `alpha-miner` releases at:
 https://github.com/AlphaMine-Tech/alpha-miner/releases
 ```
 
-Use pinned versions for normal operation. Avoid relying on `latest` for production because cloud hosts and Vast templates can cache images, and you want to know exactly which miner binary is running.
+Use pinned versions for normal operation. Avoid relying on `latest` for production because cloud hosts and Vast templates can cache images, and you want to know exactly which miner package is running.
 
-Current upstream status checked on 2026-07-05:
+Current upstream status checked on 2026-08-07:
 
-- `v1.8.6` is latest and adds native MDL merge-mining with `prl1...+mdl1...`.
-- Upstream marks `v1.8.6` as pre-release/community testing and requires NVIDIA driver `>=580`.
+- `v1.9.1.02` is latest and is an emergency rank-128 hotfix for the Alpha Miner 1.9.1 backend/rank-selection failure.
+- The Linux Ubuntu asset is `alpha-miner-1.9.1b-ubuntu-amd64.tar.gz`; it replaces the older standalone `alpha-miner` binary asset layout.
+- The hotfix rejects manual `--gemm`, `--rank`, `--legacy-gemm`, `--force-backend`, `PEARL_XP*`, and `PEARL_XK_*` controls. Do not set those in Docker, Vast, or native fallback environments.
+- `v1.8.6` introduced native MDL merge-mining with `prl1...+mdl1...`.
 - `v1.8.3` is still described upstream as the recommended stable build, but it does not provide the new native MDL merge-mining address form.
 
 ### Docker Image Update
 
-Pick the miner version from the upstream release page. Use `1.8.6` for MDL merge-mining support.
+Pick the miner version from the upstream release page. Use `1.9.1.02` for the current rank-128 hotfix.
 
 Build the new image:
 
 ```bash
-ALPHA_MINER_VERSION=1.8.6
+ALPHA_MINER_VERSION=1.9.1.02
 
 docker build --platform linux/amd64 \
   -t pearl-miner:${ALPHA_MINER_VERSION} \
@@ -420,13 +422,21 @@ docker build --platform linux/amd64 \
   .
 ```
 
+For future releases that use a different Linux tarball filename, add:
+
+```bash
+--build-arg ALPHA_MINER_LINUX_ASSET=alpha-miner-VERSION-ubuntu-amd64.tar.gz
+```
+
+The default `auto` value knows the `v1.9.1.02` asset name and falls back to the older standalone `alpha-miner` asset layout for older releases.
+
 The build must show:
 
 ```text
-alpha-miner: OK
+alpha-miner-1.9.1b-ubuntu-amd64.tar.gz: OK
 ```
 
-That means the downloaded binary matched upstream `SHA256SUMS`.
+That means the downloaded package matched upstream `SHA256SUMS`.
 
 Tag and push the new image:
 
@@ -444,7 +454,7 @@ YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.3
 to:
 
 ```text
-YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.6
+YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.1.02
 ```
 
 Then redeploy/restart the default job or container. Vast may not pull the new image until the job is recreated or restarted.
@@ -454,14 +464,14 @@ Then redeploy/restart the default job or container. Vast may not pull the new im
 On an idle host:
 
 ```bash
-docker pull YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.6
+docker pull YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.1.02
 docker rm -f pearl-miner
 ```
 
 Then run the `docker run` command again with the new image tag:
 
 ```bash
-YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.6
+YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.1.02
 ```
 
 ### Docker Compose Update
@@ -469,15 +479,15 @@ YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.6
 Edit [docker-compose.yml](docker-compose.yml) and change:
 
 ```yaml
-ALPHA_MINER_VERSION: "1.8.6"
-image: pearl-miner:1.8.6
+ALPHA_MINER_VERSION: "1.9.1.02"
+image: pearl-miner:1.9.1.02
 ```
 
 to your chosen new version, for example:
 
 ```yaml
-ALPHA_MINER_VERSION: "1.8.7"
-image: pearl-miner:1.8.7
+ALPHA_MINER_VERSION: "1.9.1.03"
+image: pearl-miner:1.9.1.03
 ```
 
 Then rebuild:
@@ -493,7 +503,7 @@ docker compose logs -f pearl-miner
 The native runner supports the same version variable:
 
 ```bash
-ALPHA_MINER_VERSION=1.8.6 \
+ALPHA_MINER_VERSION=1.9.1.02 \
 ALPHA_MINER_FORCE_DOWNLOAD=true \
 PEARL_ADDRESS=prl1pYOUR_PRL_ADDRESS \
 PEARL_MDL_ADDRESS=mdl1YOUR_MDL_ADDRESS \
@@ -504,7 +514,7 @@ PEARL_DIFFICULTY=1048576 \
 ./scripts/run-native-alpha-miner.sh
 ```
 
-`ALPHA_MINER_FORCE_DOWNLOAD=true` forces the script to replace the existing binary under `$HOME/.local/bin/alpha-miner`.
+`ALPHA_MINER_FORCE_DOWNLOAD=true` forces the script to replace the existing wrapper under `$HOME/.local/bin/alpha-miner` and packaged runtime under `$HOME/.local/bin/alpha-miner-runtime`.
 
 ### Emergency Latest Build
 
@@ -521,7 +531,7 @@ For Vast/default jobs, prefer a numbered tag after testing.
 
 ### Roll Back
 
-If v1.8.6 misbehaves or your host driver is below 580, return the template/default job/container to the previous stable image tag, for example:
+If v1.9.1.02 misbehaves or a host has package/runtime compatibility issues, return the template/default job/container to the previous stable image tag, for example:
 
 ```bash
 docker pull YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.8.3
@@ -572,12 +582,12 @@ docker compose down
 | `PEARL_MDL_ADDRESS` | no | none | Optional MDL address starting with `mdl1`; appends to `PEARL_ADDRESS` for merge-mining on alpha-miner v1.8.6+ |
 | `PEARL_WORKER` | no | container hostname | Worker label shown as `address.worker` |
 | `PEARL_POOL_HOST` | no | `us2.alphapool.tech` | Use a stratum host, not `pearl.alphapool.tech` |
-| `PEARL_POOL_PORT` | no | `5566` | `5566` is PPLNS; `5567` is solo when available |
+| `PEARL_POOL_PORT` | no | `5566` | `5566` is PPLNS; AlphaMine notes dedicated SOLO uses `5573`, not `5567` |
 | `PEARL_POOL` / `PEARL_POOL_URL` | no | built from host/port | Full pool URL override |
 | `PEARL_DIFFICULTY` | no | vardiff or matched preset | Sets password to `x;d=N`; overrides CSV preset difficulty when set |
 | `PEARL_PASSWORD` | no | `x` | Ignored when `PEARL_DIFFICULTY` is set |
 | `PEARL_DEVICES` | no | all visible GPUs | Example: `0,1,2` |
-| `PEARL_FORCE_BACKEND` | no | auto | `volta`, `ampere`, `ada`, `hopper`, `blackwell`, or `blackwell-native` |
+| `PEARL_FORCE_BACKEND` | no | rejected | Do not use with v1.9.1.02; the hotfix rejects user backend overrides |
 | `PEARL_STATUS_INTERVAL` | no | `60` | Miner status log interval in seconds |
 | `PEARL_LIST_DEVICES` | no | false | Set `true` to run `alpha-miner --list-devices` and exit |
 
@@ -606,7 +616,7 @@ For smaller GPUs, lower it later if pool stats look unstable.
 
 ## Optional MDL Merge-Mining
 
-`alpha-miner v1.8.6` adds native MDL merge-mining. Upstream marks v1.8.6 as pre-release/community testing and requires NVIDIA driver `580+`.
+`alpha-miner v1.8.6` added native MDL merge-mining. This image now defaults to `v1.9.1.02`, which preserves pool, wallet, worker, device, password, difficulty, and status options while applying the emergency rank-128 hotfix.
 
 ### What Is MDL?
 
@@ -619,6 +629,25 @@ prl1YOUR_PRL+mdl1YOUR_MDL
 ```
 
 The HeroMiners ModelOS page describes modelOS/MDL as a Layer-1 Proof-of-Useful-Work project using GPU-heavy matrix multiplication related to AI workloads. Treat that as ecosystem context; AlphaMine's release notes are the source of truth for how `alpha-miner` accepts merge-mining addresses.
+
+### Alpha Miner 1.9.1.02 Hotfix Safety Rules
+
+The 2026-08-07 `v1.9.1.02` release is an emergency rank-128 hotfix. Upstream states it prevents rank-256/512/1024 work after the rank-128 fork and intentionally fails closed when manual rank/GEMM/backend controls are present.
+
+Do not pass these controls:
+
+```text
+--gemm
+--rank
+--legacy-gemm
+--force-backend
+PEARL_XP
+PEARL_XP_*
+PEARL_XK_*
+PEARL_FORCE_BACKEND
+```
+
+This repo rejects those env vars/arguments before launching the miner so misconfigured deployments fail clearly instead of mining with invalid work selection.
 
 ### Get an MDL Wallet Address
 
@@ -655,7 +684,7 @@ docker run --rm --gpus all \
   -e PEARL_POOL_HOST=us2.alphapool.tech \
   -e PEARL_POOL_PORT=5566 \
   -e PEARL_DIFFICULTY=1048576 \
-  pearl-miner:1.8.6
+  pearl-miner:1.9.1.02
 ```
 
 Or use AlphaMine's direct combined address form:
@@ -669,6 +698,7 @@ Do not set both `PEARL_MDL_ADDRESS` and a `+mdl1...` suffix in `PEARL_ADDRESS`. 
 References:
 
 - AlphaMine v1.8.6 merge-mining release: `https://github.com/AlphaMine-Tech/alpha-miner/releases/tag/v1.8.6`
+- AlphaMine v1.9.1.02 rank-128 hotfix release: `https://github.com/AlphaMine-Tech/alpha-miner/releases/tag/v1.9.1.02`
 - ModelOS wallet page: `https://compute.modeloslab.xyz/wallet`
 - HeroMiners ModelOS overview: `https://modelos.herominers.com/`
 
@@ -683,7 +713,7 @@ docker run --rm --gpus all \
   -e PEARL_ADDRESS=prl1pYOUR_PRL_ADDRESS \
   -e PEARL_GPU_PRESETS_URL=https://example.com/pearl-gpu-presets.csv \
   -e PEARL_GPU_PRESETS_DRY_RUN=true \
-  pearl-miner:1.8.6
+  pearl-miner:1.9.1.02
 ```
 
 Run once with `PEARL_GPU_PRESETS_DRY_RUN=true` before production. Dry-run prints the commands that would be applied without changing clocks or power limits.
@@ -742,7 +772,7 @@ docker run --rm --gpus all \
   -e PEARL_ADDRESS=prl1pYOUR_PRL_ADDRESS \
   -e PEARL_GPU_PRESETS_ENABLE=true \
   -e PEARL_GPU_PRESETS_DRY_RUN=true \
-  pearl-miner:1.8.6
+  pearl-miner:1.9.1.02
 ```
 
 ## Troubleshooting
@@ -800,7 +830,7 @@ If `--gpus all` triggers the Vast shim failure on a provider host, try Docker's 
 docker run --rm --runtime=nvidia \
   -e NVIDIA_VISIBLE_DEVICES=all \
   -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-  pearl-miner:1.8.6 \
+  pearl-miner:1.9.1.02 \
   /bin/sh -lc 'nvidia-smi && test -x /usr/local/bin/alpha-miner && echo image-ok'
 ```
 
@@ -818,12 +848,12 @@ docker run -d --restart unless-stopped --runtime=nvidia \
   -e PEARL_POOL_HOST=us2.alphapool.tech \
   -e PEARL_POOL_PORT=5566 \
   -e PEARL_DIFFICULTY=1048576 \
-  pearl-miner:1.8.6
+  pearl-miner:1.9.1.02
 ```
 
 If both `--gpus all` and `--runtime=nvidia` fail with `kaalia_docker_shim`, restart the Vast provider services or the host before trying again. The failure is below the container image layer.
 
-If you need to mine immediately while Docker GPU runtime is broken, use the native fallback runner in [vast/native-fallback.md](vast/native-fallback.md). It downloads the same official `alpha-miner`, verifies `SHA256SUMS`, and runs directly against the host NVIDIA driver.
+If you need to mine immediately while Docker GPU runtime is broken, use the native fallback runner in [vast/native-fallback.md](vast/native-fallback.md). It downloads the same official `alpha-miner` package, verifies `SHA256SUMS`, and runs directly against the host NVIDIA driver.
 
 If Docker works with `--runtime=runc`, you can also try the experimental manual GPU injection wrapper:
 
@@ -902,5 +932,6 @@ docker rm -f pearl-miner
 - AlphaPool Pearl pool page: `https://pearl.alphapool.tech/`
 - AlphaMine official miner repository: `https://github.com/AlphaMine-Tech/alpha-miner`
 - Pearl wallet releases: `https://github.com/pearl-research-labs/pearl/releases`
-- AlphaMine v1.8.6 release notes: `https://github.com/AlphaMine-Tech/alpha-miner/releases/tag/v1.8.6`
+- AlphaMine v1.8.6 merge-mining release notes: `https://github.com/AlphaMine-Tech/alpha-miner/releases/tag/v1.8.6`
+- AlphaMine v1.9.1.02 release notes: `https://github.com/AlphaMine-Tech/alpha-miner/releases/tag/v1.9.1.02`
 - ModelOS wallet page: `https://compute.modeloslab.xyz/wallet`

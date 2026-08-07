@@ -4,8 +4,8 @@ services:
     build:
       context: .
       args:
-        ALPHA_MINER_VERSION: "1.8.6"
-    image: pearl-miner:1.8.6
+        ALPHA_MINER_VERSION: "1.9.1.02"
+    image: pearl-miner:1.9.1.02
     restart: unless-stopped
     gpus: all
     environment:

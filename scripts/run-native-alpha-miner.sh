@@ -10,9 +10,36 @@ die() {
   exit 1
 }
 
-version="${ALPHA_MINER_VERSION:-1.8.6}"
+version="${ALPHA_MINER_VERSION:-1.9.1.02}"
+linux_asset="${ALPHA_MINER_LINUX_ASSET:-auto}"
 install_dir="${ALPHA_MINER_DIR:-$HOME/.local/bin}"
 miner_path="${install_dir}/alpha-miner"
+runtime_dir="${ALPHA_MINER_RUNTIME_DIR:-${install_dir}/alpha-miner-runtime}"
+version_marker="${ALPHA_MINER_VERSION_FILE:-${install_dir}/alpha-miner.version}"
+
+reject_hotfix_override_controls() {
+  [[ -z "${PEARL_XP+x}" ]] || die "PEARL_XP is rejected by Alpha Miner ${version}; remove rank/GEMM override environment variables"
+  [[ -z "${PEARL_FORCE_BACKEND:-}" ]] || die "PEARL_FORCE_BACKEND is rejected by Alpha Miner ${version}; remove backend overrides"
+
+  local env_name arg
+  while IFS='=' read -r env_name _; do
+    case "$env_name" in
+      PEARL_XP_*|PEARL_XK_*)
+        die "${env_name} is rejected by Alpha Miner ${version}; remove rank/GEMM override environment variables"
+        ;;
+    esac
+  done < <(env)
+
+  for arg in "$@"; do
+    case "$arg" in
+      --gemm|--gemm=*|--rank|--rank=*|--legacy-gemm|--legacy-gemm=*|--force-backend|--force-backend=*)
+        die "${arg} is rejected by Alpha Miner ${version}; remove manual rank/GEMM/backend arguments"
+        ;;
+    esac
+  done
+}
+
+reject_hotfix_override_controls "$@"
 
 address="${PEARL_ADDRESS:-}"
 [[ -n "$address" ]] || die "PEARL_ADDRESS is required, for example prl1..."
@@ -51,9 +78,15 @@ if [[ -n "${PEARL_DIFFICULTY:-}" ]]; then
   password="x;d=${PEARL_DIFFICULTY}"
 fi
 
-if [[ ! -x "$miner_path" || "${ALPHA_MINER_FORCE_DOWNLOAD:-}" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
+installed_version=""
+if [[ -f "$version_marker" ]]; then
+  installed_version="$(<"$version_marker")"
+fi
+
+if [[ ! -x "$miner_path" || "$installed_version" != "$version" || "${ALPHA_MINER_FORCE_DOWNLOAD:-}" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
   command -v curl >/dev/null 2>&1 || die "curl is required"
   command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required"
+  command -v tar >/dev/null 2>&1 || die "tar is required"
   mkdir -p "$install_dir"
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "$tmp_dir"' EXIT
@@ -64,11 +97,42 @@ if [[ ! -x "$miner_path" || "${ALPHA_MINER_FORCE_DOWNLOAD:-}" =~ ^(1|true|TRUE|y
     release_url="https://github.com/AlphaMine-Tech/alpha-miner/releases/download/v${version}"
   fi
 
-  log "Downloading alpha-miner ${version} from ${release_url}"
-  curl -fsSL "${release_url}/alpha-miner" -o "${tmp_dir}/alpha-miner"
+  if [[ "$linux_asset" == "auto" ]]; then
+    if [[ "$version" == "1.9.1.02" ]]; then
+      linux_asset="alpha-miner-1.9.1b-ubuntu-amd64.tar.gz"
+    else
+      linux_asset="alpha-miner"
+    fi
+  fi
+
+  log "Downloading alpha-miner ${version} asset ${linux_asset} from ${release_url}"
   curl -fsSL "${release_url}/SHA256SUMS" -o "${tmp_dir}/SHA256SUMS"
-  (cd "$tmp_dir" && grep -E '[[:space:]]+alpha-miner$' SHA256SUMS | sha256sum -c -)
-  install -m 0755 "${tmp_dir}/alpha-miner" "$miner_path"
+  if [[ "$linux_asset" == "alpha-miner" ]]; then
+    curl -fsSL "${release_url}/alpha-miner" -o "${tmp_dir}/alpha-miner"
+    (cd "$tmp_dir" && grep -E '[[:space:]]+alpha-miner$' SHA256SUMS | sha256sum -c -)
+    install -m 0755 "${tmp_dir}/alpha-miner" "$miner_path"
+  else
+    curl -fsSL "${release_url}/${linux_asset}" -o "${tmp_dir}/${linux_asset}"
+    (cd "$tmp_dir" && grep -E "[[:space:]]+${linux_asset}$" SHA256SUMS | sha256sum -c -)
+    mkdir -p "${tmp_dir}/extract"
+    tar xzf "${tmp_dir}/${linux_asset}" -C "${tmp_dir}/extract"
+    package_dir="$(find "${tmp_dir}/extract" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+    [[ -n "$package_dir" ]] || die "could not find extracted alpha-miner package directory"
+    [[ -x "${package_dir}/alpha-miner" ]] || die "extracted package is missing executable alpha-miner wrapper"
+    [[ -f "${package_dir}/.alpha-miner-core" ]] || die "extracted package is missing .alpha-miner-core"
+    rm -rf "${runtime_dir}.new"
+    mkdir -p "${runtime_dir}.new"
+    cp -a "${package_dir}/." "${runtime_dir}.new/"
+    chmod 0755 "${runtime_dir}.new/alpha-miner" "${runtime_dir}.new/.alpha-miner-core"
+    rm -rf "$runtime_dir"
+    mv "${runtime_dir}.new" "$runtime_dir"
+    {
+      printf '%s\n' '#!/usr/bin/env bash'
+      printf 'exec %q "$@"\n' "${runtime_dir}/alpha-miner"
+    } > "$miner_path"
+    chmod 0755 "$miner_path"
+  fi
+  printf '%s\n' "$version" > "$version_marker"
 fi
 
 args=(
@@ -81,10 +145,6 @@ args=(
 
 if [[ -n "${PEARL_DEVICES:-}" ]]; then
   args+=(--devices "$PEARL_DEVICES")
-fi
-
-if [[ -n "${PEARL_FORCE_BACKEND:-}" ]]; then
-  args+=(--force-backend "$PEARL_FORCE_BACKEND")
 fi
 
 if command -v nvidia-smi >/dev/null 2>&1; then
