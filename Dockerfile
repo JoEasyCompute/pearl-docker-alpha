@@ -1,11 +1,11 @@
 ARG IMAGE_PLATFORM=linux/amd64
 FROM --platform=${IMAGE_PLATFORM} nvidia/cuda:12.3.2-runtime-ubuntu22.04
 
-ARG ALPHA_MINER_VERSION=1.9.1.02
+ARG ALPHA_MINER_VERSION=1.9.5.2
 ARG ALPHA_MINER_LINUX_ASSET=auto
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl tar \
+  && apt-get install -y --no-install-recommends ca-certificates curl tar util-linux \
   && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
@@ -20,11 +20,12 @@ RUN set -eux; \
   fi; \
   linux_asset="${ALPHA_MINER_LINUX_ASSET}"; \
   if [ "${linux_asset}" = "auto" ]; then \
-    if [ "${ALPHA_MINER_VERSION}" = "1.9.1.02" ]; then \
-      linux_asset="alpha-miner-1.9.1b-ubuntu-amd64.tar.gz"; \
-    else \
-      linux_asset="alpha-miner"; \
-    fi; \
+    case "${ALPHA_MINER_VERSION}" in \
+      1.9.5.2) linux_asset="AlphaMiner-Linux-1.9.5.2.run" ;; \
+      1.9.1.02) linux_asset="alpha-miner-1.9.1b-ubuntu-amd64.tar.gz" ;; \
+      latest) echo "Set ALPHA_MINER_LINUX_ASSET when building an unpinned latest release" >&2; exit 1 ;; \
+      *) linux_asset="alpha-miner" ;; \
+    esac; \
   fi; \
   curl -fsSL "${release_url}/SHA256SUMS" -o /tmp/SHA256SUMS; \
   if [ "${linux_asset}" = "alpha-miner" ]; then \
@@ -32,6 +33,23 @@ RUN set -eux; \
     cd /usr/local/bin; \
     grep -E '[[:space:]]+alpha-miner$' /tmp/SHA256SUMS | sha256sum -c -; \
     chmod 0755 /usr/local/bin/alpha-miner; \
+  elif [ "${linux_asset%.run}" != "${linux_asset}" ]; then \
+    curl -fsSL "${release_url}/${linux_asset}" -o "/tmp/${linux_asset}"; \
+    cd /tmp; \
+    grep -E "[[:space:]]+${linux_asset}$" SHA256SUMS | sha256sum -c -; \
+    payload_line="$(awk '/^__ALPHAMINER_PAYLOAD_BELOW__$/{print NR + 1; exit}' "/tmp/${linux_asset}")"; \
+    test -n "${payload_line}"; \
+    tail -n +"${payload_line}" "/tmp/${linux_asset}" > /tmp/alpha-miner-payload.tar.gz; \
+    mkdir -p /tmp/alpha-miner-extract /opt/alpha-miner; \
+    tar xzf /tmp/alpha-miner-payload.tar.gz -C /tmp/alpha-miner-extract; \
+    package_dir="$(find /tmp/alpha-miner-extract -mindepth 1 -maxdepth 1 -type d | head -n 1)"; \
+    test -n "${package_dir}"; \
+    cd "${package_dir}"; \
+    sha256sum -c SHA256SUMS; \
+    cp -a "${package_dir}/." /opt/alpha-miner/; \
+    test -x /opt/alpha-miner/alpha-miner; \
+    printf '%s\n' '#!/usr/bin/env sh' 'exec /opt/alpha-miner/alpha-miner "$@"' > /usr/local/bin/alpha-miner; \
+    chmod 0755 /usr/local/bin/alpha-miner /opt/alpha-miner/alpha-miner; \
   else \
     curl -fsSL "${release_url}/${linux_asset}" -o "/tmp/${linux_asset}"; \
     cd /tmp; \
@@ -46,21 +64,24 @@ RUN set -eux; \
     printf '%s\n' '#!/usr/bin/env sh' 'exec /opt/alpha-miner/alpha-miner "$@"' > /usr/local/bin/alpha-miner; \
     chmod 0755 /usr/local/bin/alpha-miner /opt/alpha-miner/alpha-miner /opt/alpha-miner/.alpha-miner-core; \
   fi; \
-  rm -rf /tmp/SHA256SUMS "/tmp/${linux_asset}" /tmp/alpha-miner-extract
+  rm -rf /tmp/SHA256SUMS "/tmp/${linux_asset}" /tmp/alpha-miner-payload.tar.gz /tmp/alpha-miner-extract
 
 COPY entrypoint.sh /usr/local/bin/pearl-entrypoint
 COPY scripts/apply-gpu-presets.sh /usr/local/bin/apply-gpu-presets
 COPY examples/gpu-presets.csv /etc/pearl/gpu-presets.example.csv
 RUN chmod 0755 /usr/local/bin/pearl-entrypoint /usr/local/bin/apply-gpu-presets
 
-ENV NVIDIA_VISIBLE_DEVICES=all \
+ENV ALPHA_MINER_VERSION=${ALPHA_MINER_VERSION} \
+  NVIDIA_VISIBLE_DEVICES=all \
   NVIDIA_DRIVER_CAPABILITIES=compute,utility \
   PEARL_POOL_HOST=us2.alphapool.tech \
   PEARL_POOL_PORT=5566 \
-  PEARL_STATUS_INTERVAL=60 \
   PEARL_GPU_PRESETS_FILE=/etc/pearl/gpu-presets.csv \
   PEARL_GPU_PRESETS_ENV_FILE=/tmp/pearl-gpu-preset.env \
   PEARL_GPU_PRESETS_TIMEOUT=10 \
   PEARL_GPU_PRESETS_ALGORITHM=pearlhash
+
+RUN mkdir -p /var/lib/alpha-miner
+WORKDIR /var/lib/alpha-miner
 
 ENTRYPOINT ["/usr/local/bin/pearl-entrypoint"]

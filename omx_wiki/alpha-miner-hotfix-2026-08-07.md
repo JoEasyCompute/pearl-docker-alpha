@@ -1,7 +1,21 @@
+---
+title: "Alpha Miner Hotfix 2026-08-07"
+tags: ["pearl", "alpha-miner", "hotfix", "docker", "vast", "deployment"]
+created: 2026-08-07T00:00:00.000Z
+updated: 2026-09-16T00:00:00.000Z
+sources: []
+links: ["alpha-miner-1-9-5-2-migration.md"]
+category: reference
+confidence: high
+schemaVersion: 1
+---
+
 # Alpha Miner Hotfix 2026-08-07
 
 Category: session-log
 Tags: pearl, alpha-miner, hotfix, docker, vast, deployment
+
+Historical snapshot. The current default is documented in [[alpha-miner-1-9-5-2-migration]].
 
 ## Upstream Release
 
@@ -13,7 +27,7 @@ Tags: pearl, alpha-miner, hotfix, docker, vast, deployment
 
 ## Repo Decisions
 
-- Default `ALPHA_MINER_VERSION` is now `1.9.1.02`.
+- At the time of this snapshot, the default `ALPHA_MINER_VERSION` became `1.9.1.02`.
 - Docker build now supports the tarball package layout and installs the packaged wrapper plus hidden `.alpha-miner-core` under `/opt/alpha-miner`.
 - Native fallback now installs a wrapper under `$HOME/.local/bin/alpha-miner` and runtime files under `$HOME/.local/bin/alpha-miner-runtime`.
 - The native runner writes a version marker so changing `ALPHA_MINER_VERSION` triggers a re-download without requiring manual cleanup.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-image="${PEARL_IMAGE:-pearl-miner:1.9.1.02}"
+image="${PEARL_IMAGE:-pearl-miner:1.9.5.2}"
 name="${PEARL_CONTAINER_NAME:-pearl-miner}"
 
 die() {
@@ -70,5 +70,4 @@ exec docker run -d --restart unless-stopped --runtime=runc \
   -e PEARL_POOL_HOST="${PEARL_POOL_HOST:-us2.alphapool.tech}" \
   -e PEARL_POOL_PORT="${PEARL_POOL_PORT:-5566}" \
   -e PEARL_DIFFICULTY="${PEARL_DIFFICULTY:-1048576}" \
-  -e PEARL_STATUS_INTERVAL="${PEARL_STATUS_INTERVAL:-60}" \
   "$image"

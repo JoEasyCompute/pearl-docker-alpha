@@ -5,7 +5,7 @@ set -Eeuo pipefail
 
 log_file="${PEARL_LOG_FILE:-/var/log/pearl-miner.log}"
 
-if pgrep -f 'alpha-miner .*--address' >/dev/null 2>&1; then
+if pgrep -f 'alpha-miner .*--worker' >/dev/null 2>&1; then
   echo "alpha-miner is already running"
   exit 0
 fi

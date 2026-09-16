@@ -1,11 +1,25 @@
+---
+title: "Pearl Miner Runtime 2026-07-06"
+tags: ["pearl", "alpha-miner", "mdl", "gpu-presets", "vast", "docker"]
+created: 2026-07-06T00:00:00.000Z
+updated: 2026-09-16T00:00:00.000Z
+sources: []
+links: ["alpha-miner-1-9-5-2-migration.md"]
+category: reference
+confidence: high
+schemaVersion: 1
+---
+
 # Pearl Miner Runtime 2026-07-06
 
 Category: session-log
 Tags: pearl, alpha-miner, mdl, gpu-presets, vast, docker
 
+Historical snapshot. The current miner package and CLI are documented in [[alpha-miner-1-9-5-2-migration]].
+
 ## Current Runtime
 
-- Docker image defaults to AlphaMine `v1.8.6`, matching the upstream pre-release that adds native PRL+MDL merge-mining address support.
+- At the time of this snapshot, the Docker image defaulted to AlphaMine `v1.8.6`, matching the upstream pre-release that added native PRL+MDL merge-mining address support.
 - `PEARL_ADDRESS` remains the required PRL wallet address and must start with `prl1`.
 - `PEARL_MDL_ADDRESS` is optional. When set, the entrypoint passes `--address prl1...+mdl1...` to `alpha-miner`.
 - If `PEARL_ADDRESS` already contains `+mdl1...`, `PEARL_MDL_ADDRESS` must not also be set.
