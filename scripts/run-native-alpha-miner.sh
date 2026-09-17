@@ -10,8 +10,16 @@ die() {
   exit 1
 }
 
-version="${ALPHA_MINER_VERSION:-1.9.5.2}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+package_helper="${ALPHA_MINER_PACKAGE_HELPER:-${script_dir}/alpha-miner-package.sh}"
+[[ -f "$package_helper" ]] || die "package helper not found: ${package_helper}"
+# shellcheck source=alpha-miner-package.sh
+source "$package_helper"
+
+version="${ALPHA_MINER_VERSION:-1.9.6}"
 linux_asset="${ALPHA_MINER_LINUX_ASSET:-auto}"
+base_url="${ALPHA_MINER_BASE_URL:-auto}"
+package_sha256="${ALPHA_MINER_SHA256:-auto}"
 install_dir="${ALPHA_MINER_DIR:-$HOME/.local/bin}"
 miner_path="${install_dir}/alpha-miner"
 runtime_dir="${ALPHA_MINER_RUNTIME_DIR:-${install_dir}/alpha-miner-runtime}"
@@ -90,62 +98,45 @@ if [[ ! -x "$miner_path" || "$installed_version" != "$version" || "${ALPHA_MINER
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "$tmp_dir"' EXIT
 
-  if [[ "$version" == "latest" ]]; then
-    release_url="https://github.com/AlphaMine-Tech/alpha-miner/releases/latest/download"
+  alpha_miner_resolve_package "$version" "$linux_asset" "$base_url" "$package_sha256" || die "could not resolve alpha-miner package"
+  linux_asset="$ALPHA_MINER_RESOLVED_ASSET"
+
+  log "Downloading alpha-miner ${version} asset ${linux_asset} from ${ALPHA_MINER_PACKAGE_URL}"
+  curl -fsSL "$ALPHA_MINER_PACKAGE_URL" -o "${tmp_dir}/${linux_asset}"
+  if [[ -n "$ALPHA_MINER_RESOLVED_SHA256" ]]; then
+    (cd "$tmp_dir" && printf '%s  %s\n' "$ALPHA_MINER_RESOLVED_SHA256" "$linux_asset" | sha256sum -c -)
   else
-    release_url="https://github.com/AlphaMine-Tech/alpha-miner/releases/download/v${version}"
-  fi
-
-  if [[ "$linux_asset" == "auto" ]]; then
-    case "$version" in
-      1.9.5.2) linux_asset="AlphaMiner-Linux-1.9.5.2.run" ;;
-      1.9.1.02) linux_asset="alpha-miner-1.9.1b-ubuntu-amd64.tar.gz" ;;
-      latest) die "set ALPHA_MINER_LINUX_ASSET when using ALPHA_MINER_VERSION=latest" ;;
-      *) linux_asset="alpha-miner" ;;
-    esac
-  fi
-
-  log "Downloading alpha-miner ${version} asset ${linux_asset} from ${release_url}"
-  curl -fsSL "${release_url}/SHA256SUMS" -o "${tmp_dir}/SHA256SUMS"
-  if [[ "$linux_asset" == "alpha-miner" ]]; then
-    curl -fsSL "${release_url}/alpha-miner" -o "${tmp_dir}/alpha-miner"
-    (cd "$tmp_dir" && grep -E '[[:space:]]+alpha-miner$' SHA256SUMS | sha256sum -c -)
-    install -m 0755 "${tmp_dir}/alpha-miner" "$miner_path"
-  elif [[ "$linux_asset" == *.run ]]; then
-    curl -fsSL "${release_url}/${linux_asset}" -o "${tmp_dir}/${linux_asset}"
+    curl -fsSL "$ALPHA_MINER_CHECKSUM_URL" -o "${tmp_dir}/SHA256SUMS"
     (cd "$tmp_dir" && grep -E "[[:space:]]+${linux_asset}$" SHA256SUMS | sha256sum -c -)
-    payload_line="$(awk '/^__ALPHAMINER_PAYLOAD_BELOW__$/{print NR + 1; exit}' "${tmp_dir}/${linux_asset}")"
-    [[ -n "$payload_line" ]] || die "could not find embedded package payload"
-    tail -n +"$payload_line" "${tmp_dir}/${linux_asset}" > "${tmp_dir}/payload.tar.gz"
+  fi
+
+  if [[ "$ALPHA_MINER_PACKAGE_LAYOUT" == "standalone" ]]; then
+    install -m 0755 "${tmp_dir}/${linux_asset}" "$miner_path"
+  else
     mkdir -p "${tmp_dir}/extract"
-    tar xzf "${tmp_dir}/payload.tar.gz" -C "${tmp_dir}/extract"
+    if [[ "$ALPHA_MINER_PACKAGE_LAYOUT" == "self-extracting" ]]; then
+      payload_line="$(awk '/^__ALPHAMINER_PAYLOAD_BELOW__$/{print NR + 1; exit}' "${tmp_dir}/${linux_asset}")"
+      [[ -n "$payload_line" ]] || die "could not find embedded package payload"
+      tail -n +"$payload_line" "${tmp_dir}/${linux_asset}" > "${tmp_dir}/payload.tar.gz"
+      tar xzf "${tmp_dir}/payload.tar.gz" -C "${tmp_dir}/extract"
+    else
+      tar xzf "${tmp_dir}/${linux_asset}" -C "${tmp_dir}/extract"
+    fi
     package_dir="$(find "${tmp_dir}/extract" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
     [[ -n "$package_dir" ]] || die "could not find extracted alpha-miner package directory"
     [[ -x "${package_dir}/alpha-miner" ]] || die "extracted package is missing executable alpha-miner launcher"
-    (cd "$package_dir" && sha256sum -c SHA256SUMS)
+    if [[ "$ALPHA_MINER_PACKAGE_LAYOUT" == "legacy-tar" ]]; then
+      [[ -f "${package_dir}/.alpha-miner-core" ]] || die "extracted package is missing .alpha-miner-core"
+    else
+      (cd "$package_dir" && sha256sum -c SHA256SUMS)
+    fi
     rm -rf "${runtime_dir}.new"
     mkdir -p "${runtime_dir}.new"
     cp -a "${package_dir}/." "${runtime_dir}.new/"
-    rm -rf "$runtime_dir"
-    mv "${runtime_dir}.new" "$runtime_dir"
-    {
-      printf '%s\n' '#!/usr/bin/env bash'
-      printf 'exec %q "$@"\n' "${runtime_dir}/alpha-miner"
-    } > "$miner_path"
-    chmod 0755 "$miner_path" "${runtime_dir}/alpha-miner"
-  else
-    curl -fsSL "${release_url}/${linux_asset}" -o "${tmp_dir}/${linux_asset}"
-    (cd "$tmp_dir" && grep -E "[[:space:]]+${linux_asset}$" SHA256SUMS | sha256sum -c -)
-    mkdir -p "${tmp_dir}/extract"
-    tar xzf "${tmp_dir}/${linux_asset}" -C "${tmp_dir}/extract"
-    package_dir="$(find "${tmp_dir}/extract" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-    [[ -n "$package_dir" ]] || die "could not find extracted alpha-miner package directory"
-    [[ -x "${package_dir}/alpha-miner" ]] || die "extracted package is missing executable alpha-miner wrapper"
-    [[ -f "${package_dir}/.alpha-miner-core" ]] || die "extracted package is missing .alpha-miner-core"
-    rm -rf "${runtime_dir}.new"
-    mkdir -p "${runtime_dir}.new"
-    cp -a "${package_dir}/." "${runtime_dir}.new/"
-    chmod 0755 "${runtime_dir}.new/alpha-miner" "${runtime_dir}.new/.alpha-miner-core"
+    chmod 0755 "${runtime_dir}.new/alpha-miner"
+    if [[ "$ALPHA_MINER_PACKAGE_LAYOUT" == "legacy-tar" ]]; then
+      chmod 0755 "${runtime_dir}.new/.alpha-miner-core"
+    fi
     rm -rf "$runtime_dir"
     mv "${runtime_dir}.new" "$runtime_dir"
     {

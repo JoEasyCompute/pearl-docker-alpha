@@ -102,7 +102,7 @@ fi
 
 cli_style="${ALPHA_MINER_CLI_STYLE:-auto}"
 if [[ "$cli_style" == "auto" ]]; then
-  miner_version="${ALPHA_MINER_VERSION:-1.9.5.2}"
+  miner_version="${ALPHA_MINER_VERSION:-1.9.6}"
   if [[ "$miner_version" == "latest" ]]; then
     cli_style="current"
   elif [[ "$miner_version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then

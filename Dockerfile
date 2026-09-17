@@ -1,68 +1,59 @@
 ARG IMAGE_PLATFORM=linux/amd64
 FROM --platform=${IMAGE_PLATFORM} nvidia/cuda:12.3.2-runtime-ubuntu22.04
 
-ARG ALPHA_MINER_VERSION=1.9.5.2
+ARG ALPHA_MINER_VERSION=1.9.6
 ARG ALPHA_MINER_LINUX_ASSET=auto
+ARG ALPHA_MINER_BASE_URL=auto
+ARG ALPHA_MINER_SHA256=auto
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl tar util-linux \
   && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/alpha-miner-package.sh /usr/local/lib/alpha-miner-package.sh
 
 RUN set -eux; \
   if [ "$(dpkg --print-architecture)" != "amd64" ]; then \
     echo "alpha-miner Linux package is only published for linux/amd64" >&2; \
     exit 1; \
   fi; \
-  if [ "${ALPHA_MINER_VERSION}" = "latest" ]; then \
-    release_url="https://github.com/AlphaMine-Tech/alpha-miner/releases/latest/download"; \
+  . /usr/local/lib/alpha-miner-package.sh; \
+  alpha_miner_resolve_package "${ALPHA_MINER_VERSION}" "${ALPHA_MINER_LINUX_ASSET}" "${ALPHA_MINER_BASE_URL}" "${ALPHA_MINER_SHA256}"; \
+  linux_asset="${ALPHA_MINER_RESOLVED_ASSET}"; \
+  curl -fsSL "${ALPHA_MINER_PACKAGE_URL}" -o "/tmp/${linux_asset}"; \
+  cd /tmp; \
+  if [ -n "${ALPHA_MINER_RESOLVED_SHA256}" ]; then \
+    printf '%s  %s\n' "${ALPHA_MINER_RESOLVED_SHA256}" "${linux_asset}" | sha256sum -c -; \
   else \
-    release_url="https://github.com/AlphaMine-Tech/alpha-miner/releases/download/v${ALPHA_MINER_VERSION}"; \
-  fi; \
-  linux_asset="${ALPHA_MINER_LINUX_ASSET}"; \
-  if [ "${linux_asset}" = "auto" ]; then \
-    case "${ALPHA_MINER_VERSION}" in \
-      1.9.5.2) linux_asset="AlphaMiner-Linux-1.9.5.2.run" ;; \
-      1.9.1.02) linux_asset="alpha-miner-1.9.1b-ubuntu-amd64.tar.gz" ;; \
-      latest) echo "Set ALPHA_MINER_LINUX_ASSET when building an unpinned latest release" >&2; exit 1 ;; \
-      *) linux_asset="alpha-miner" ;; \
-    esac; \
-  fi; \
-  curl -fsSL "${release_url}/SHA256SUMS" -o /tmp/SHA256SUMS; \
-  if [ "${linux_asset}" = "alpha-miner" ]; then \
-    curl -fsSL "${release_url}/alpha-miner" -o /usr/local/bin/alpha-miner; \
-    cd /usr/local/bin; \
-    grep -E '[[:space:]]+alpha-miner$' /tmp/SHA256SUMS | sha256sum -c -; \
-    chmod 0755 /usr/local/bin/alpha-miner; \
-  elif [ "${linux_asset%.run}" != "${linux_asset}" ]; then \
-    curl -fsSL "${release_url}/${linux_asset}" -o "/tmp/${linux_asset}"; \
-    cd /tmp; \
+    curl -fsSL "${ALPHA_MINER_CHECKSUM_URL}" -o /tmp/SHA256SUMS; \
     grep -E "[[:space:]]+${linux_asset}$" SHA256SUMS | sha256sum -c -; \
-    payload_line="$(awk '/^__ALPHAMINER_PAYLOAD_BELOW__$/{print NR + 1; exit}' "/tmp/${linux_asset}")"; \
-    test -n "${payload_line}"; \
-    tail -n +"${payload_line}" "/tmp/${linux_asset}" > /tmp/alpha-miner-payload.tar.gz; \
+  fi; \
+  if [ "${ALPHA_MINER_PACKAGE_LAYOUT}" = "standalone" ]; then \
+    install -m 0755 "/tmp/${linux_asset}" /usr/local/bin/alpha-miner; \
+  else \
     mkdir -p /tmp/alpha-miner-extract /opt/alpha-miner; \
-    tar xzf /tmp/alpha-miner-payload.tar.gz -C /tmp/alpha-miner-extract; \
+    if [ "${ALPHA_MINER_PACKAGE_LAYOUT}" = "self-extracting" ]; then \
+      payload_line="$(awk '/^__ALPHAMINER_PAYLOAD_BELOW__$/{print NR + 1; exit}' "/tmp/${linux_asset}")"; \
+      test -n "${payload_line}"; \
+      tail -n +"${payload_line}" "/tmp/${linux_asset}" > /tmp/alpha-miner-payload.tar.gz; \
+      tar xzf /tmp/alpha-miner-payload.tar.gz -C /tmp/alpha-miner-extract; \
+    else \
+      tar xzf "/tmp/${linux_asset}" -C /tmp/alpha-miner-extract; \
+    fi; \
     package_dir="$(find /tmp/alpha-miner-extract -mindepth 1 -maxdepth 1 -type d | head -n 1)"; \
     test -n "${package_dir}"; \
-    cd "${package_dir}"; \
-    sha256sum -c SHA256SUMS; \
+    if [ "${ALPHA_MINER_PACKAGE_LAYOUT}" = "legacy-tar" ]; then \
+      test -x "${package_dir}/alpha-miner"; \
+      test -f "${package_dir}/.alpha-miner-core"; \
+    else \
+      cd "${package_dir}"; \
+      sha256sum -c SHA256SUMS; \
+    fi; \
     cp -a "${package_dir}/." /opt/alpha-miner/; \
     test -x /opt/alpha-miner/alpha-miner; \
     printf '%s\n' '#!/usr/bin/env sh' 'exec /opt/alpha-miner/alpha-miner "$@"' > /usr/local/bin/alpha-miner; \
     chmod 0755 /usr/local/bin/alpha-miner /opt/alpha-miner/alpha-miner; \
-  else \
-    curl -fsSL "${release_url}/${linux_asset}" -o "/tmp/${linux_asset}"; \
-    cd /tmp; \
-    grep -E "[[:space:]]+${linux_asset}$" SHA256SUMS | sha256sum -c -; \
-    mkdir -p /tmp/alpha-miner-extract /opt/alpha-miner; \
-    tar xzf "/tmp/${linux_asset}" -C /tmp/alpha-miner-extract; \
-    package_dir="$(find /tmp/alpha-miner-extract -mindepth 1 -maxdepth 1 -type d | head -n 1)"; \
-    test -n "${package_dir}"; \
-    cp -a "${package_dir}/." /opt/alpha-miner/; \
-    test -x /opt/alpha-miner/alpha-miner; \
-    test -f /opt/alpha-miner/.alpha-miner-core; \
-    printf '%s\n' '#!/usr/bin/env sh' 'exec /opt/alpha-miner/alpha-miner "$@"' > /usr/local/bin/alpha-miner; \
-    chmod 0755 /usr/local/bin/alpha-miner /opt/alpha-miner/alpha-miner /opt/alpha-miner/.alpha-miner-core; \
+    if [ "${ALPHA_MINER_PACKAGE_LAYOUT}" = "legacy-tar" ]; then chmod 0755 /opt/alpha-miner/.alpha-miner-core; fi; \
   fi; \
   rm -rf /tmp/SHA256SUMS "/tmp/${linux_asset}" /tmp/alpha-miner-payload.tar.gz /tmp/alpha-miner-extract
 

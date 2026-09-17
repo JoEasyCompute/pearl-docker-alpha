@@ -57,16 +57,16 @@ kill "$(cat logs/pearl-native.pid)"
 
 ## Update Native Alpha Miner
 
-The native runner defaults to `ALPHA_MINER_VERSION=1.9.5.2`. To update or roll back, choose a release from:
+The native runner defaults to `ALPHA_MINER_VERSION=1.9.6`. Current package details come from:
 
 ```text
-https://github.com/AlphaMine-Tech/alpha-miner/releases
+https://pearl.alphapool.tech/#setup
 ```
 
 Then force a re-download:
 
 ```bash
-ALPHA_MINER_VERSION=1.9.5.2 \
+ALPHA_MINER_VERSION=1.9.6 \
 ALPHA_MINER_FORCE_DOWNLOAD=true \
 PEARL_ADDRESS=prl1pYOUR_PRL_ADDRESS \
 PEARL_MDL_ADDRESS=mdl1YOUR_MDL_ADDRESS \
@@ -77,14 +77,14 @@ PEARL_DIFFICULTY=1048576 \
 ./scripts/run-native-alpha-miner.sh
 ```
 
-The script downloads the matching Linux package, downloads `SHA256SUMS`, verifies the package, and installs a wrapper plus runtime files:
+The script downloads the matching Linux package, verifies the pinned archive SHA-256 and internal `SHA256SUMS`, and installs a wrapper plus runtime files:
 
 ```text
 $HOME/.local/bin/alpha-miner
 $HOME/.local/bin/alpha-miner-runtime/
 ```
 
-For `v1.9.5.2`, do not set `PEARL_FORCE_BACKEND`, `PEARL_XP*`, `PEARL_XK_*`, `--gemm`, `--rank`, `--legacy-gemm`, or `--force-backend`; the launcher rejects those controls.
+For `v1.9.6`, do not set `PEARL_FORCE_BACKEND`, `PEARL_XP*`, `PEARL_XK_*`, `--gemm`, `--rank`, `--legacy-gemm`, or `--force-backend`; the launcher rejects those controls.
 
 To roll back, run the same command with the previous version:
 

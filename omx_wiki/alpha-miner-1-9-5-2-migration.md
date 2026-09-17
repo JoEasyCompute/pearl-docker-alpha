@@ -4,13 +4,15 @@ tags: ["alpha-miner", "pearl", "docker", "release", "gpu"]
 created: 2026-09-16T20:29:30.553Z
 updated: 2026-09-16T20:29:30.553Z
 sources: []
-links: ["alpha-miner-hotfix-2026-08-07.md", "pearl-miner-runtime-2026-07-06.md"]
+links: ["alpha-miner-1-9-6-certificate-v3.md", "alpha-miner-hotfix-2026-08-07.md", "pearl-miner-runtime-2026-07-06.md"]
 category: reference
 confidence: medium
 schemaVersion: 1
 ---
 
 # Alpha Miner 1.9.5.2 Migration
+
+Historical snapshot. The current certificate-V3 package is documented in [[alpha-miner-1-9-6-certificate-v3]].
 
 ## Upstream release
 

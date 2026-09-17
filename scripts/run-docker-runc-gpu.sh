@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-image="${PEARL_IMAGE:-pearl-miner:1.9.5.2}"
+image="${PEARL_IMAGE:-pearl-miner:1.9.6}"
 name="${PEARL_CONTAINER_NAME:-pearl-miner}"
 
 die() {

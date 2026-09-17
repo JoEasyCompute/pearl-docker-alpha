@@ -37,4 +37,15 @@
 ## [2026-09-16T20:37:31.263Z] lint
 - **Pages:** none
 - **Summary:** Lint: 0 issues (0 orphan, 0 stale, 0 broken, 0 contradictions)
+## 2026-09-17
+
+- Added [[alpha-miner-1-9-6-certificate-v3]] after AlphaPool moved current Linux setup from GitHub `v1.9.5.2` to its pool-hosted certificate-V3 `v1.9.6 unified` package.
+
+## [2026-09-17T13:30:20.048Z] lint
+- **Pages:** none
+- **Summary:** Lint: 0 issues (0 orphan, 0 stale, 0 broken, 0 contradictions)
+
+## [2026-09-17T13:32:54.481Z] lint
+- **Pages:** none
+- **Summary:** Lint: 0 issues (0 orphan, 0 stale, 0 broken, 0 contradictions)
 

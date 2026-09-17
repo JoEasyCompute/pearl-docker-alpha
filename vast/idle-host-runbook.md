@@ -9,7 +9,7 @@ Do not run this miner on GPUs that are rented by a customer. With this manual me
 SSH into the host and run:
 
 ```bash
-docker pull YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.5.2
+docker pull YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.6
 
 docker rm -f pearl-miner 2>/dev/null || true
 
@@ -21,7 +21,7 @@ docker run -d --restart unless-stopped --gpus all \
   -e PEARL_POOL_HOST=us2.alphapool.tech \
   -e PEARL_POOL_PORT=5566 \
   -e PEARL_DIFFICULTY=1048576 \
-  YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.5.2
+  YOUR_DOCKERHUB_OR_GHCR_IMAGE:1.9.6
 ```
 
 View logs:
@@ -63,7 +63,7 @@ Try bypassing `--gpus all` and selecting the NVIDIA runtime explicitly:
 docker run --rm --runtime=nvidia \
   -e NVIDIA_VISIBLE_DEVICES=all \
   -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-  pearl-miner:1.9.5.2 \
+  pearl-miner:1.9.6 \
   /bin/sh -lc 'nvidia-smi && echo gpu-runtime-ok'
 ```
 
@@ -82,7 +82,7 @@ docker run -d --restart unless-stopped --runtime=nvidia \
   -e PEARL_POOL_HOST=us2.alphapool.tech \
   -e PEARL_POOL_PORT=5566 \
   -e PEARL_DIFFICULTY=1048576 \
-  pearl-miner:1.9.5.2
+  pearl-miner:1.9.6
 ```
 
 If this still fails with the same shim error, restart the Vast provider services or reboot the host. That failure occurs before the Pearl miner process starts.
